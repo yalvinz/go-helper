@@ -9,6 +9,33 @@ import (
 	redisc "github.com/mna/redisc"
 )
 
+// Del do DEL command to redis
+// Cluster does not support multi command, will invesitage later
+func (c *Cluster) Del(key string) error {
+	client := c.clusterPool.Get()
+	defer client.Close()
+
+	if client.Err() != nil {
+		return client.Err()
+	}
+
+	rc, err := redisc.RetryConn(client, c.retryCount, c.retryDuration*time.Millisecond)
+	if err != nil {
+		return err
+	}
+
+	resp, err := redis.Int(rc.Do("DEL", key))
+	if err != nil {
+		return err
+	}
+
+	if resp < 0 {
+		return fmt.Errorf("Unexpected redis response %d", resp)
+	}
+
+	return nil
+}
+
 // Get do GET command to redis
 func (c *Cluster) Get(key string) (string, error) {
 	client := c.clusterPool.Get()
